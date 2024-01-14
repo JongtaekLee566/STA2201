@@ -1,0 +1,122 @@
+---
+title: "Lab Exercises 1"
+author: "Jongtaek Lee"
+date: "2024-01-13"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo = TRUE)
+```
+
+```{r }
+library(tidyverse)
+```
+
+```{r warning=FALSE}
+dm <- read_table("https://www.prdh.umontreal.ca/BDLC/data/ont/Mx_1x1.txt", skip = 2, col_types = "dcddd")
+head(dm)
+```
+
+# Question 1
+
+```{r }
+dm_fm_ratio <- dm |>
+                  mutate(fm_ratio = Female/Male) |>
+                  filter(Age==10|Age==20|Age==30|Age==40) |>
+                  select(Year:Age|fm_ratio)
+dm_fm_ratio
+```
+
+```{r }
+dm_fm_ratio |>
+  ggplot(aes(x=Year ,y=fm_ratio, color=Age, linetype=Age)) +
+  geom_line() + 
+  scale_color_brewer(palette = "Set1") +
+  theme_bw() +
+  labs(title = "Female to Male mortality ratio over time, Ontario",
+       y = "Female/Male mortality")
+```
+
+# Question 2
+
+```{r }
+dm |>
+  select(Year:Age|Female) |>
+  group_by(Year) |>
+  summarize(Age[which.min(Female)])
+```
+
+# Question 3
+
+```{r warning=FALSE}
+dm |> 
+  group_by(Age) |> 
+  summarize(across(Female:Total, sd, na.rm = TRUE)) |>
+  arrange(as.numeric(Age))
+```
+
+```{r }
+dm2 <- read_table("https://www.prdh.umontreal.ca/BDLC/data/ont/Population.txt", skip = 2, col_types = "dcddd")
+head(dm2)
+```
+
+```{r }
+colnames(dm2) <- c("Year", "Age", "Female_pop", "Male_pop", "Total_pop")
+
+dm_new <- dm |>
+            left_join(dm2)
+dm_new
+```
+
+```{r }
+dm_avg <- dm_new |>
+  group_by(Year) |>
+  summarize(Female = sum(Female*Female_pop, na.rm=TRUE)/sum(Female_pop, na.rm=TRUE),
+            Male = sum(Male*Male_pop, na.rm=TRUE)/sum(Male_pop, na.rm=TRUE)) |>
+  pivot_longer(Female:Male, names_to = "Sex", values_to = "Average_rate")
+dm_avg
+```
+
+```{r }
+dm_avg |>
+  ggplot(aes(x=Year, y=Average_rate, color=Sex)) +
+  geom_line() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "A trend of average mortality rates over time, Ontario",
+       y = "Average Mortality rate") + 
+  theme_bw()
+```
+
+Since 1975, the mortality rate for female started to keep increasing until 2000, however the one for male kept decreasing in the same period.
+
+# Question 5
+
+```{r warning=FALSE}
+y <- dm |>
+        select(Year:Female) |>
+        filter(Year == 2000, as.numeric(Age) < 106)
+y
+```
+
+```{r }
+y_data <- log(y$Female)
+```
+
+```{r }
+model <- lm(y_data ~ as.numeric(y$Age), data=y)
+summary(model)
+```
+Population regression model:
+
+$log(Female_{i}) = \beta_{0i} + \beta_{1i}*Age_{i} + \epsilon_{i}$
+
+Fitted regression model:
+
+$log(Female_{i}) = -10.062281 + 0.086897*Age_{i}$
+
+The expected value of log of female mortality rate increases by 0.086891 for every unit increase of Age. Therefore, for a woman who gets one year older, her expected mortality rate will be exp(0.086891) = 1.090788 times of the current rate.
+
+
